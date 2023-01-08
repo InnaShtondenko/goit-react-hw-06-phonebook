@@ -1,5 +1,11 @@
-import { Component } from 'react';
-import { PropTypes } from 'prop-types';
+import { Notify } from 'notiflix';
+
+import { useState } from 'react';
+import { useDispatch } from 'react-redux';
+
+import { store } from 'redux/store.js';
+import { addContact } from 'redux/contactsSlice';
+
 import {
     AddContactButton,
     AddContactForm,
@@ -7,34 +13,48 @@ import {
     ContactInput,
 } from './Form.styled'; 
 
-export class ContactForm extends Component {
-  state = {
-    name: '',
-    number: '',
-  };
+export function ContactForm() {
+  const [name, setName] = useState('');
+  const [number, setNumber] = useState('');
 
-  static propTypes = {
-    onSubmitCallback: PropTypes.func.isRequired,
+  const stateMethods = {
+    [name]: setName,
+    [number]: setNumber,
   };
+  const dispatch = useDispatch();
 
-  onSubmit = e => {
+  function isContactWithNameExist(searchName) {
+    const {
+      contacts: { contacts: contactsData },
+    } = store.getState();
+
+    if (!contactsData) return;
+
+    const searchNameNormalized = searchName.trim().toLowerCase();
+
+    return contactsData.some(
+      ({ name }) => name.toLowerCase() === searchNameNormalized
+    );
+  }
+
+  const onSubmit = e => {
     e.preventDefault();
 
-    this.props.onSubmitCallback(this.state);
+    if (isContactWithNameExist(name)) {
+      Notify.warning("Can't add already existing contact");
+      return;
+    }
 
-    e.currentTarget.reset();
+    dispatch(addContact({ name, number }));
+    setName('');
+    setNumber('');
   };
 
-  onInput = evt => {
-    this.setState({ [evt.target.name]: evt.target.value });
-  };
+  const onInput = e => {
+    const { name: inputName, value: inputValue } = e.target;
 
-  render() {
-    const {
-      onInput,
-      onSubmit,
-      state: { name, number },
-    } = this;
+    stateMethods[inputName](inputValue);
+  };
 
     return (
       <AddContactForm onSubmit={onSubmit}>
@@ -42,7 +62,7 @@ export class ContactForm extends Component {
           Name
           <ContactInput
             type="text"
-            name="name"
+            name={name}
             pattern="^[a-zA-Zа-яА-Я]+(([' -][a-zA-Zа-яА-Я ])?[a-zA-Zа-яА-Я]*)*$"
             title="Name may contain only letters, apostrophe, dash and spaces. For example Adrian, Jacob Mercer, Charles de Batz de Castelmore d'Artagnan"
             required
@@ -55,7 +75,7 @@ export class ContactForm extends Component {
           Number
           <ContactInput
             type="tel"
-            name="number"
+            name={number}
             pattern="\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}"
             title="Phone number must be digits and can contain spaces, dashes, parentheses and can start with +"
             required
@@ -69,4 +89,3 @@ export class ContactForm extends Component {
       </AddContactForm>
     );
   }
-}
